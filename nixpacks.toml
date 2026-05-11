@@ -3,7 +3,7 @@ nixPkgs = ["php83", "nodejs_22"]
 
 [phases.install]
 cmds = [
-  "npm ci",
+  "npm install",
   "composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader"
 ]
 

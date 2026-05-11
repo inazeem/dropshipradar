@@ -10,8 +10,8 @@ RUN composer install \
 
 FROM node:22-alpine AS assets
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci
+COPY package.json ./
+RUN npm install
 COPY resources ./resources
 COPY public ./public
 COPY vite.config.js postcss.config.js tailwind.config.js ./
