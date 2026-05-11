@@ -39,7 +39,10 @@
                         <a href="{{ route('profit-loss.index') }}" class="rounded-lg border border-white/15 px-4 py-2 text-sm text-slate-400 hover:text-white transition">Clear</a>
                     @endif
                 </div>
-            </form> grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            </form>
+
+            {{-- Metric Cards --}}
+            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                 <div class="metric-card">
                     <p class="metric-label">Total Orders</p>
                     <p class="metric-value">{{ number_format($totals['count']) }}</p>
