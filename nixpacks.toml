@@ -4,7 +4,7 @@ nixPkgs = ["php83", "nodejs_22"]
 [phases.install]
 cmds = [
   "corepack enable",
-  "pnpm install",
+  "pnpm install --verbose",
   "composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader"
 ]
 
