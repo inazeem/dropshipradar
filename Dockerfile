@@ -36,10 +36,20 @@ COPY . .
 COPY --from=vendor /app/vendor ./vendor
 COPY --from=assets /app/public/build ./public/build
 
-RUN chown -R www-data:www-data storage bootstrap/cache
+RUN mkdir -p \
+    storage/framework/cache/data \
+    storage/framework/sessions \
+    storage/framework/views \
+    storage/logs \
+    bootstrap/cache \
+    && chown -R www-data:www-data storage bootstrap/cache \
+    && chmod -R ug+rwx storage bootstrap/cache
 
 ENV APP_ENV=production
 ENV APP_DEBUG=false
+ENV SESSION_DRIVER=file
+ENV CACHE_STORE=file
+ENV VIEW_COMPILED_PATH=/var/www/html/storage/framework/views
 
 EXPOSE 80
 CMD ["apache2-foreground"]
