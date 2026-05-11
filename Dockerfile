@@ -10,12 +10,12 @@ RUN composer install \
 
 FROM node:22-alpine AS assets
 WORKDIR /app
-COPY package.json pnpm-lock.yaml ./
-RUN corepack enable && pnpm install --frozen-lockfile
+COPY package.json package-lock.json ./
+RUN npm ci
 COPY resources ./resources
 COPY public ./public
 COPY vite.config.js postcss.config.js tailwind.config.js ./
-RUN pnpm run build
+RUN npm run build
 
 FROM php:8.3-apache AS app
 WORKDIR /var/www/html
