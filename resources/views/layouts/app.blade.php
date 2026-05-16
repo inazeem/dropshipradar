@@ -31,7 +31,7 @@
 
             <!-- Page Heading -->
             @isset($header)
-                <header class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+                <header class="w-full px-4 sm:px-6 lg:px-8 pt-8">
                     <div class="glass-card px-6 py-5">
                         {{ $header }}
                     </div>

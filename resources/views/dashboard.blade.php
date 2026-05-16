@@ -5,14 +5,47 @@
                 <p class="text-xs uppercase tracking-[0.2em] text-cyan-300/80">Control Center</p>
                 <h2 class="font-display text-2xl leading-tight text-white">Dashboard</h2>
             </div>
+            @if(auth()->user()->canManageOrders())
             <a href="{{ route('orders.create') }}" class="inline-flex items-center rounded-lg bg-cyan-400/90 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-300 transition">
                 + New Order
             </a>
+            @endif
         </div>
     </x-slot>
 
     <div class="py-8">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+        <div class="w-full px-4 sm:px-6 lg:px-8 space-y-6">
+
+            <form method="GET" action="{{ route('dashboard') }}" class="glass-card p-4 flex flex-wrap gap-3 items-end">
+                @if($isAdmin && $clients->isNotEmpty())
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">User</label>
+                        <select name="user_id"
+                            class="rounded-lg border border-white/15 bg-slate-900/70 text-white focus:border-cyan-300 focus:ring-cyan-300 text-sm px-3 py-2">
+                            <option value="">All Users</option>
+                            @foreach($clients as $client)
+                                <option value="{{ $client->id }}" @selected(request('user_id') == $client->id)>{{ $client->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                @endif
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Order Date From</label>
+                    <input name="date_from" type="date" value="{{ request('date_from') }}"
+                        class="rounded-lg border border-white/15 bg-slate-900/70 text-white focus:border-cyan-300 focus:ring-cyan-300 text-sm px-3 py-2">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Order Date To</label>
+                    <input name="date_to" type="date" value="{{ request('date_to') }}"
+                        class="rounded-lg border border-white/15 bg-slate-900/70 text-white focus:border-cyan-300 focus:ring-cyan-300 text-sm px-3 py-2">
+                </div>
+                <div class="flex items-end gap-2">
+                    <button type="submit" class="rounded-lg bg-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-600 transition">Apply</button>
+                    @if(request('date_from') || request('date_to') || request('user_id'))
+                        <a href="{{ route('dashboard') }}" class="rounded-lg border border-white/15 px-4 py-2 text-sm text-slate-400 hover:text-white transition">Clear</a>
+                    @endif
+                </div>
+            </form>
 
             {{-- Summary Cards --}}
             <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -31,6 +64,18 @@
                 <div class="metric-card">
                     <p class="metric-label">Net Profit</p>
                     <p class="metric-value {{ $totalProfit >= 0 ? 'text-emerald-300' : 'text-rose-300' }}">{{ $currencySymbol }}{{ number_format($totalProfit, 2) }}</p>
+                </div>
+                <div class="metric-card">
+                    <p class="metric-label">Average ROI</p>
+                    <p class="metric-value">{{ number_format($averageRoi, 2) }}%</p>
+                </div>
+                <div class="metric-card">
+                    <p class="metric-label">Best Order</p>
+                    <p class="metric-value text-emerald-300">{{ $currencySymbol }}{{ number_format($bestOrderProfit, 2) }}</p>
+                </div>
+                <div class="metric-card">
+                    <p class="metric-label">Worst Order</p>
+                    <p class="metric-value text-rose-300">{{ $currencySymbol }}{{ number_format($worstOrderProfit, 2) }}</p>
                 </div>
             </div>
 
@@ -82,59 +127,65 @@
                             <span class="font-semibold text-rose-100">{{ number_format($losingOrders) }}</span>
                         </div>
                     </div>
-                    <a href="{{ route('profit-loss.index') }}" class="mt-5 inline-flex items-center text-sm text-cyan-300 hover:text-cyan-100 transition">
-                        Open Profit & Loss report →
-                    </a>
                 </div>
             </div>
 
-            {{-- Recent Orders --}}
-            <div class="glass-card p-6">
+            <div class="glass-card p-5 overflow-x-auto">
                 <div class="flex items-center justify-between mb-4">
-                    <h3 class="font-display text-xl text-white">Recent Orders</h3>
+                    <h3 class="font-display text-xl text-white">Orders</h3>
                     <a href="{{ route('orders.index') }}" class="text-sm text-cyan-300 hover:text-cyan-100">View all orders</a>
                 </div>
 
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm text-left min-w-[680px]">
-                        <thead class="text-slate-300 border-b border-white/10">
-                            <tr>
-                                <th class="py-3 pe-3">Date</th>
-                                <th class="py-3 pe-3">Buyer</th>
-                                <th class="py-3 pe-3">eBay Order</th>
-                                <th class="py-3 pe-3">Status</th>
-                                <th class="py-3 pe-3 text-right">Profit</th>
-                                <th class="py-3 text-right">ROI</th>
+                <table class="w-full min-w-[920px] text-sm text-left">
+                    <thead class="text-slate-300 border-b border-white/10">
+                        <tr>
+                            <th class="py-3 pe-3">Date</th>
+                            @if($isAdmin) <th class="py-3 pe-3">User</th> @endif
+                            <th class="py-3 pe-3">Buyer</th>
+                            <th class="py-3 pe-3">eBay Order</th>
+                            <th class="py-3 pe-3">Status</th>
+                            <th class="py-3 pe-3 text-right">Amazon Cost</th>
+                            <th class="py-3 pe-3 text-right">eBay Receipts</th>
+                            <th class="py-3 pe-3 text-right">Profit</th>
+                            <th class="py-3 text-right">ROI</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($orders as $order)
+                            @php
+                                $statusColour = match($order->status) {
+                                    'Delivered'    => 'bg-emerald-400/15 text-emerald-300',
+                                    'Order Placed' => 'bg-cyan-400/15 text-cyan-300',
+                                    'Refunded'     => 'bg-rose-400/15 text-rose-300',
+                                    default        => 'bg-amber-400/15 text-amber-300',
+                                };
+                            @endphp
+                            <tr class="border-b border-white/5">
+                                <td class="py-3 pe-3 text-slate-300 whitespace-nowrap">{{ $order->order_date->format('d M Y') }}</td>
+                                @if($isAdmin)
+                                    <td class="py-3 pe-3 text-slate-400 text-xs">{{ $order->user->name ?? '—' }}</td>
+                                @endif
+                                <td class="py-3 pe-3 text-slate-200 max-w-[160px] truncate">{{ $order->buyer_name }}</td>
+                                <td class="py-3 pe-3 text-slate-400 font-mono text-xs">{{ $order->ebay_order_no ?? '—' }}</td>
+                                <td class="py-3 pe-3">
+                                    <span class="inline-block rounded-full px-2.5 py-0.5 text-xs font-medium {{ $statusColour }}">{{ $order->status }}</span>
+                                </td>
+                                <td class="py-3 pe-3 text-right text-slate-200">{{ $currencySymbol }}{{ number_format($order->amazon_cost, 2) }}</td>
+                                <td class="py-3 pe-3 text-right text-slate-200">{{ $currencySymbol }}{{ number_format($order->ebay_receipts, 2) }}</td>
+                                <td class="py-3 pe-3 text-right {{ $order->profit >= 0 ? 'text-emerald-300' : 'text-rose-300' }}">{{ $currencySymbol }}{{ number_format($order->profit, 2) }}</td>
+                                <td class="py-3 text-right text-slate-300">{{ number_format($order->roi, 1) }}%</td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($recentOrders as $order)
-                                @php
-                                    $statusColour = match($order->status) {
-                                        'Delivered'    => 'bg-emerald-400/15 text-emerald-300',
-                                        'Order Placed' => 'bg-cyan-400/15 text-cyan-300',
-                                        'Refunded'     => 'bg-rose-400/15 text-rose-300',
-                                        default        => 'bg-amber-400/15 text-amber-300',
-                                    };
-                                @endphp
-                                <tr class="border-b border-white/5">
-                                    <td class="py-3 pe-3 text-slate-300 whitespace-nowrap">{{ $order->order_date->format('d M Y') }}</td>
-                                    <td class="py-3 pe-3 text-slate-200 max-w-[160px] truncate">{{ $order->buyer_name }}</td>
-                                    <td class="py-3 pe-3 text-slate-400 font-mono text-xs">{{ $order->ebay_order_no ?? '—' }}</td>
-                                    <td class="py-3 pe-3">
-                                        <span class="inline-block rounded-full px-2.5 py-0.5 text-xs font-medium {{ $statusColour }}">{{ $order->status }}</span>
-                                    </td>
-                                    <td class="py-3 pe-3 text-right {{ $order->profit >= 0 ? 'text-emerald-300' : 'text-rose-300' }}">{{ $currencySymbol }}{{ number_format($order->profit, 2) }}</td>
-                                    <td class="py-3 text-right text-slate-300">{{ number_format($order->roi, 1) }}%</td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="6" class="py-8 text-center text-slate-400">No orders yet. <a href="{{ route('orders.create') }}" class="text-cyan-300 hover:underline">Add your first order.</a></td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
+                        @empty
+                            <tr>
+                                <td colspan="{{ $isAdmin ? 9 : 8 }}" class="py-8 text-center text-slate-400">No orders yet.@if(auth()->user()->canManageOrders()) <a href="{{ route('orders.create') }}" class="text-cyan-300 hover:underline"> Add your first order.</a>@endif</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+
+            <div>
+                {{ $orders->links() }}
             </div>
 
         </div>

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Session;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -44,6 +45,21 @@ class User extends Authenticatable implements MustVerifyEmail
     public function isClient(): bool
     {
         return $this->role === 'client';
+    }
+
+    public function canManageOrders(): bool
+    {
+        if ($this->isAdmin()) {
+            return true;
+        }
+
+        $originalUserId = Session::get('impersonating_as');
+
+        if (! $originalUserId) {
+            return false;
+        }
+
+        return once(fn () => static::whereKey($originalUserId)->where('role', 'admin')->exists());
     }
 
     public function listings(): HasMany

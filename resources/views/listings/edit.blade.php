@@ -10,7 +10,7 @@
     </x-slot>
 
     <div class="py-8">
-        <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
+        <div class="w-full px-4 sm:px-6 lg:px-8">
             <div class="glass-card p-6 md:p-8">
                 <form method="POST" action="{{ route('listings.update', $listing) }}">
                     @csrf

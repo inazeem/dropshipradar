@@ -2,21 +2,24 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\StoreListingRequest;
-use App\Http\Requests\UpdateListingRequest;
 use App\Models\Listing;
 use App\Models\User;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class ListingController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $search = request('search');
-        $status = request('status');
+        $search = $request->string('search')->toString();
+        $status = $request->string('status')->toString();
         $user = auth()->user();
+        $perPage = $this->resolvePerPage($request);
 
         $listings = $user->listings()
             ->when($search, function ($query, $searchTerm) {
@@ -29,7 +32,7 @@ class ListingController extends Controller
             })
             ->when($status, fn ($query, $selectedStatus) => $query->where('status', $selectedStatus))
             ->latest()
-            ->paginate(14)
+            ->paginate($perPage)
             ->withQueryString();
 
         $statuses = $user->listings()->select('status')->distinct()->orderBy('status')->pluck('status');
@@ -39,7 +42,8 @@ class ListingController extends Controller
             'statuses' => $statuses,
             'search' => $search,
             'status' => $status,
-            'clients' => $user->isAdmin() ? User::orderBy('name')->get(['id', 'name', 'email']) : collect(),
+            'perPage' => $perPage,
+            'clients' => $user->isAdmin() ? User::where('role', 'client')->orderBy('name')->get(['id', 'name', 'email']) : collect(),
         ]);
     }
 
@@ -54,11 +58,13 @@ class ListingController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreListingRequest $request)
+    public function store(Request $request)
     {
-        auth()->user()->listings()->create($this->payloadWithMetrics($request->validated()));
+        $validated = $this->validateListing($request);
 
-        return redirect()->route('listings.index')->with('success', 'Listing created.');
+        auth()->user()->listings()->create($this->payloadWithMetrics($validated));
+
+        return redirect()->to($this->resolveReturnTo($request))->with('success', 'Listing created.');
     }
 
     /**
@@ -84,13 +90,15 @@ class ListingController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateListingRequest $request, Listing $listing)
+    public function update(Request $request, Listing $listing)
     {
         abort_unless($listing->user_id === auth()->id(), 403);
 
-        $listing->update($this->payloadWithMetrics($request->validated()));
+        $validated = $this->validateListing($request, $listing);
 
-        return redirect()->route('listings.index')->with('success', 'Listing updated.');
+        $listing->update($this->payloadWithMetrics($validated));
+
+        return redirect()->to($this->resolveReturnTo($request))->with('success', 'Listing updated.');
     }
 
     /**
@@ -102,7 +110,105 @@ class ListingController extends Controller
 
         $listing->delete();
 
-        return redirect()->route('listings.index')->with('success', 'Listing removed.');
+        return redirect()->to($this->resolveReturnTo(request()))->with('success', 'Listing removed.');
+    }
+
+    public function bulkPriceUpdate(Request $request): RedirectResponse
+    {
+        $user = auth()->user();
+
+        $validated = $request->validate([
+            'listing_ids' => ['required', 'array', 'min:1'],
+            'listing_ids.*' => ['integer', Rule::exists('listings', 'id')->where('user_id', $user->id)],
+            'percentage' => ['required', 'numeric', 'between:-100,1000'],
+        ]);
+
+        $user->listings()
+            ->whereIn('id', $validated['listing_ids'])
+            ->get()
+            ->each(fn (Listing $listing) => $this->applyPriceAdjustment($listing, (float) $validated['percentage']));
+
+        return redirect()->to($this->resolveReturnTo($request))
+            ->with('success', 'Selected listings updated.');
+    }
+
+    public function adjustPrice(Request $request, Listing $listing): RedirectResponse
+    {
+        abort_unless($listing->user_id === auth()->id(), 403);
+
+        $validated = $request->validate([
+            'percentage' => ['required', 'numeric', 'between:-100,1000'],
+        ]);
+
+        $this->applyPriceAdjustment($listing, (float) $validated['percentage']);
+
+        return redirect()->to($this->resolveReturnTo($request))
+            ->with('success', 'Listing price updated.');
+    }
+
+    private function validateListing(Request $request, ?Listing $listing = null): array
+    {
+        try {
+            return $request->validate($this->rulesFor($request, $listing));
+        } catch (ValidationException $exception) {
+            $bag = $listing ? 'listingUpdate'.$listing->id : 'listingStore';
+
+            throw $exception->errorBag($bag)->redirectTo(url()->previous());
+        }
+    }
+
+    private function rulesFor(Request $request, ?Listing $listing = null): array
+    {
+        return [
+            'image_url' => ['nullable', 'url', 'max:2048'],
+            'ebay_url' => [
+                'required',
+                'url',
+                'max:2048',
+                Rule::unique('listings', 'ebay_url')
+                    ->where('user_id', $request->user()->id)
+                    ->ignore($listing?->id),
+            ],
+            'amazon_url' => ['nullable', 'url', 'max:2048'],
+            'ebay_price' => ['required', 'numeric', 'min:0'],
+            'amazon_price' => ['required', 'numeric', 'min:0'],
+            'ebay_fee' => ['nullable', 'numeric', 'min:0'],
+            'status' => ['required', 'string', 'max:40'],
+            'listed_on' => ['nullable', 'date'],
+            'notes' => ['nullable', 'string', 'max:5000'],
+        ];
+    }
+
+    private function resolvePerPage(Request $request): int
+    {
+        $perPage = $request->integer('per_page', 25);
+
+        return in_array($perPage, [25, 50, 75, 100], true) ? $perPage : 25;
+    }
+
+    private function resolveReturnTo(Request $request): string
+    {
+        return $request->string('return_to')->toString() ?: route('listings.index');
+    }
+
+    private function applyPriceAdjustment(Listing $listing, float $percentage): void
+    {
+        $multiplier = 1 + ($percentage / 100);
+
+        $payload = [
+            'image_url' => $listing->image_url,
+            'adjustment_percentage' => $percentage,
+            'ebay_url' => $listing->ebay_url,
+            'amazon_url' => $listing->amazon_url,
+            'ebay_price' => round(((float) $listing->ebay_price) * $multiplier, 2),
+            'amazon_price' => (float) $listing->amazon_price,
+            'ebay_fee' => (float) $listing->ebay_fee,
+            'status' => $listing->status,
+            'listed_on' => optional($listing->listed_on)->format('Y-m-d'),
+            'notes' => $listing->notes,
+        ];
+
+        $listing->update($this->payloadWithMetrics($payload));
     }
 
     private function payloadWithMetrics(array $payload): array

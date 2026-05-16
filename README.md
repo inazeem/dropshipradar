@@ -1,58 +1,98 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Dropship Radar
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Dropship Radar is a Laravel-based internal tool for tracking listings, orders, profit, and bulk Amazon workflows for dropshipping operations.
 
-## About Laravel
+## Main Features
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- Inline editing for listings and orders directly from the table view.
+- Add new listings and orders without leaving the index page.
+- Bulk selection for listings.
+- Bulk eBay price adjustments by percentage.
+- Bulk opening of selected Amazon product URLs.
+- Admin tools for importing listings to users and managing users.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Local Development
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
-
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+Common commands:
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+composer install
+corepack pnpm install
+php artisan migrate
+php artisan serve
+corepack pnpm dev
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Frontend production build:
 
-## Contributing
+```bash
+corepack pnpm build
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Blade cache refresh:
 
-## Code of Conduct
+```bash
+php artisan view:cache
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## Bulk Amazon Tabs
 
-## Security Vulnerabilities
+The Listings page supports selecting multiple rows and opening their Amazon URLs in separate browser tabs.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+How it works:
 
-## License
+1. Select one or more listings using the checkboxes.
+2. Click `Open Amazon URLs`.
+3. The app attempts to open each selected Amazon URL in a separate tab.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+If only one tab opens, the browser is blocking additional popup tabs.
+
+## Popup Blocker Settings
+
+To allow bulk Amazon tabs to open correctly, allow popups for the local app domain.
+
+### Chrome
+
+Quick method:
+
+1. Open the Listings page.
+2. Click the popup-blocked icon on the right side of the address bar.
+3. Choose `Always allow pop-ups and redirects from ...`.
+4. Reload the page.
+
+Manual method:
+
+1. Open `chrome://settings/content/popups`.
+2. Under `Allowed to send pop-ups and use redirects`, click `Add`.
+3. Add the local site URL.
+
+Examples:
+
+- `http://localhost`
+- `http://dropshipaccounts.test`
+
+### Edge
+
+Quick method:
+
+1. Open the Listings page.
+2. Click the popup-blocked icon in the address bar.
+3. Allow popups for the site.
+4. Reload the page.
+
+Manual method:
+
+1. Open `edge://settings/content/popups`.
+2. Under `Allow`, click `Add`.
+3. Add the local site URL.
+
+Examples:
+
+- `http://localhost`
+- `http://dropshipaccounts.test`
+
+## Notes
+
+- If you are using Herd, allow the exact Herd local domain, not just `localhost`.
+- Browser extensions such as popup blockers, privacy tools, or ad blockers can still prevent multiple tabs from opening even after browser settings are updated.
+- If bulk tab opening is still blocked, disable those extensions for the local site and try again.

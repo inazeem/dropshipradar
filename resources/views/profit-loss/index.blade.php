@@ -7,7 +7,7 @@
     </x-slot>
 
     <div class="py-8">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+        <div class="w-full px-4 sm:px-6 lg:px-8 space-y-6">
 
             {{-- Filters --}}
             <form method="GET" action="{{ route('profit-loss.index') }}" class="glass-card p-4 flex flex-wrap gap-3 items-end">

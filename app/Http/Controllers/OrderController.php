@@ -6,6 +6,7 @@ use App\Helpers\CurrencyHelper;
 use App\Models\Order;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class OrderController extends Controller
 {
@@ -13,6 +14,7 @@ class OrderController extends Controller
     {
         $user    = auth()->user();
         $isAdmin = $user->isAdmin();
+        $canManageOrders = $user->canManageOrders();
 
         // Admins can filter by client; default to all orders
         $filterUserId = $request->get('user_id');
@@ -65,40 +67,41 @@ class OrderController extends Controller
             'count'   => (clone $totalsQuery)->count(),
         ];
 
-        $clients = $isAdmin ? User::orderBy('name')->get(['id', 'name']) : collect();
+        $clients = $isAdmin ? User::where('role', 'client')->orderBy('name')->get(['id', 'name']) : collect();
 
         $currency = $user->currency;
         $currencySymbol = CurrencyHelper::getSymbol($currency);
 
-        return view('orders.index', compact('orders', 'totals', 'isAdmin', 'clients', 'currency', 'currencySymbol'));
+        return view('orders.index', compact('orders', 'totals', 'isAdmin', 'clients', 'currency', 'currencySymbol', 'canManageOrders'));
     }
 
     public function create()
     {
+        $this->authorize('create', Order::class);
+
         return view('orders.create');
     }
 
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'order_date'      => 'required|date',
-            'buyer_name'      => 'required|string|max:255',
-            'ebay_order_no'   => 'nullable|string|max:255',
-            'amazon_order_no' => 'nullable|string|max:500',
-            'note'            => 'nullable|string',
-            'status'          => 'required|string',
-            'amazon_cost'     => 'required|numeric|min:0',
-            'ebay_receipts'   => 'required|numeric|min:0',
-        ]);
+        $this->authorize('create', Order::class);
+
+        $data = $this->validateOrder($request);
 
         $data['profit'] = $data['ebay_receipts'] - $data['amazon_cost'];
         $data['roi']    = $data['amazon_cost'] > 0
             ? round(($data['profit'] / $data['amazon_cost']) * 100, 2)
             : 0;
 
-        auth()->user()->orders()->create($data);
+        $targetUser = auth()->user();
 
-        return redirect()->route('orders.index')->with('success', 'Order added successfully.');
+        if (auth()->user()->isAdmin() && $request->filled('user_id')) {
+            $targetUser = User::findOrFail($request->integer('user_id'));
+        }
+
+        $targetUser->orders()->create($data);
+
+        return redirect()->to($this->resolveReturnTo($request))->with('success', 'Order added successfully.');
     }
 
     public function edit(Order $order)
@@ -112,16 +115,7 @@ class OrderController extends Controller
     {
         $this->authorize('update', $order);
 
-        $data = $request->validate([
-            'order_date'      => 'required|date',
-            'buyer_name'      => 'required|string|max:255',
-            'ebay_order_no'   => 'nullable|string|max:255',
-            'amazon_order_no' => 'nullable|string|max:500',
-            'note'            => 'nullable|string',
-            'status'          => 'required|string',
-            'amazon_cost'     => 'required|numeric|min:0',
-            'ebay_receipts'   => 'required|numeric|min:0',
-        ]);
+        $data = $this->validateOrder($request, $order);
 
         $data['profit'] = $data['ebay_receipts'] - $data['amazon_cost'];
         $data['roi']    = $data['amazon_cost'] > 0
@@ -130,7 +124,7 @@ class OrderController extends Controller
 
         $order->update($data);
 
-        return redirect()->route('orders.index')->with('success', 'Order updated.');
+        return redirect()->to($this->resolveReturnTo($request))->with('success', 'Order updated.');
     }
 
     public function destroy(Order $order)
@@ -139,11 +133,13 @@ class OrderController extends Controller
 
         $order->delete();
 
-        return redirect()->route('orders.index')->with('success', 'Order deleted.');
+        return redirect()->to($this->resolveReturnTo(request()))->with('success', 'Order deleted.');
     }
 
     public function import(Request $request)
     {
+        abort_unless(auth()->user()->canManageOrders(), 403);
+
         $request->validate([
             'csv_file' => ['required', 'file', 'mimes:csv,txt', 'max:10240'],
             'user_id'  => ['nullable', 'exists:users,id'],
@@ -216,5 +212,31 @@ class OrderController extends Controller
         fclose($handle);
 
         return redirect()->route('orders.index')->with('success', "Imported {$imported} orders for {$targetUser->name}.");
+    }
+
+    private function validateOrder(Request $request, ?Order $order = null): array
+    {
+        try {
+            return $request->validate([
+                'user_id'         => 'nullable|exists:users,id',
+                'order_date'      => 'required|date',
+                'buyer_name'      => 'required|string|max:255',
+                'ebay_order_no'   => 'nullable|string|max:255',
+                'amazon_order_no' => 'nullable|string|max:500',
+                'note'            => 'nullable|string',
+                'status'          => 'required|string',
+                'amazon_cost'     => 'required|numeric|min:0',
+                'ebay_receipts'   => 'required|numeric|min:0',
+            ]);
+        } catch (ValidationException $exception) {
+            $bag = $order ? 'orderUpdate'.$order->id : 'orderStore';
+
+            throw $exception->errorBag($bag)->redirectTo(url()->previous());
+        }
+    }
+
+    private function resolveReturnTo(Request $request): string
+    {
+        return $request->string('return_to')->toString() ?: route('orders.index');
     }
 }

@@ -1,6 +1,6 @@
 <nav x-data="{ open: false }" class="relative z-50 border-b border-white/10 bg-slate-900/60 backdrop-blur-xl">
     <!-- Primary Navigation Menu -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="w-full px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between h-16">
             <div class="flex">
                 <!-- Logo -->
@@ -15,14 +15,13 @@
                     <x-nav-link class="text-slate-200 border-cyan-300" :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                         Dashboard
                     </x-nav-link>
+                    @if(auth()->user()?->isAdmin())
                     <x-nav-link class="text-slate-200 border-cyan-300" :href="route('listings.index')" :active="request()->routeIs('listings.*')">
                         Listings
                     </x-nav-link>
+                    @endif
                     <x-nav-link class="text-slate-200 border-cyan-300" :href="route('orders.index')" :active="request()->routeIs('orders.*')">
                         Orders
-                    </x-nav-link>
-                    <x-nav-link class="text-slate-200 border-cyan-300" :href="route('profit-loss.index')" :active="request()->routeIs('profit-loss.*')">
-                        Profit & Loss
                     </x-nav-link>
                     @if(auth()->user()?->isAdmin())
                     <x-nav-link class="text-slate-200 border-rose-400" :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')">
@@ -87,12 +86,11 @@
             <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                 Dashboard
             </x-responsive-nav-link>
+            @if(auth()->user()?->isAdmin())
             <x-responsive-nav-link :href="route('listings.index')" :active="request()->routeIs('listings.*')">
                 Listings
             </x-responsive-nav-link>
-            <x-responsive-nav-link :href="route('profit-loss.index')" :active="request()->routeIs('profit-loss.*')">
-                Profit & Loss
-            </x-responsive-nav-link>
+            @endif
             @if(auth()->user()?->isAdmin())
             <x-responsive-nav-link :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')">
                 Users

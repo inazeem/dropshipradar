@@ -1,20 +1,24 @@
+@php
+    $orderStoreErrors = $errors->getBag('orderStore');
+    $orderItems = collect($orders->items());
+    $editingOrderId = $orderItems->first(fn ($order) => $errors->getBag('orderUpdate'.$order->id)->any())?->id;
+    $returnTo = url()->full();
+    $ordersTableConfig = [
+        'editingId' => $editingOrderId,
+        'createOpen' => $orderStoreErrors->any(),
+    ];
+@endphp
+
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex flex-wrap items-center justify-between gap-4">
-            <div>
-                <p class="text-xs uppercase tracking-[0.2em] text-cyan-300/80">eBay → Amazon</p>
-                <h2 class="font-display text-2xl leading-tight text-white">Orders</h2>
-            </div>
-            <div class="flex items-center gap-2">
-                <a href="{{ route('orders.create') }}" class="rounded-lg bg-cyan-400/90 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-300 transition">
-                    + New Order
-                </a>
-            </div>
+        <div>
+            <p class="text-xs uppercase tracking-[0.2em] text-cyan-300/80">eBay → Amazon</p>
+            <h2 class="font-display text-2xl leading-tight text-white">Orders</h2>
         </div>
     </x-slot>
 
-    <div class="py-8">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+    <div class="py-8" x-data="ordersTable({{ \Illuminate\Support\Js::from($ordersTableConfig) }})">
+        <div class="w-full px-4 sm:px-6 lg:px-8 space-y-6">
 
             @if(session('success'))
                 <div class="rounded-lg bg-emerald-500/20 border border-emerald-400/30 px-4 py-3 text-emerald-300 text-sm">
@@ -22,6 +26,7 @@
                 </div>
             @endif
 
+            @if($canManageOrders)
             {{-- CSV Upload panel --}}
             <div class="glass-card p-5" x-data="{ open: false }">
                 <button type="button" @click="open = !open"
@@ -63,6 +68,7 @@
                     <p class="mt-3 text-xs text-slate-500">Expects the same format as the tracking spreadsheet: Date, Buyer Name, eBay Order No, Amazon Order No, Note, Status, Amazon Price, eBay Receipts…</p>
                 </div>
             </div>
+            @endif
 
             {{-- Summary cards --}}
             <div class="grid grid-cols-2 xl:grid-cols-4 gap-4">
@@ -85,6 +91,18 @@
                     </p>
                 </div>
             </div>
+
+            @if($canManageOrders)
+            <div class="glass-card p-5 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <p class="text-sm font-semibold text-white">Manage orders inline</p>
+                    <p class="text-xs text-slate-400">Click a row to edit it. Add a new order directly at the top of the table.</p>
+                </div>
+                <button type="button" @click="startCreate()" class="rounded-lg bg-cyan-400/90 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-300 transition">
+                    + Add Order
+                </button>
+            </div>
+            @endif
 
             {{-- Filters --}}
             <form method="GET" action="{{ route('orders.index') }}" class="flex flex-wrap gap-3 items-end">
@@ -153,6 +171,69 @@
                         </tr>
                     </thead>
                     <tbody>
+                        @if($canManageOrders)
+                        <tr x-cloak x-show="createOpen" class="border-b border-cyan-400/20 bg-cyan-400/5">
+                            <td colspan="{{ $isAdmin ? 11 : 10 }}" class="px-4 py-5">
+                                <form method="POST" action="{{ route('orders.store') }}" class="space-y-4">
+                                    @csrf
+                                    <input type="hidden" name="return_to" value="{{ $returnTo }}">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                                        <div>
+                                            <label for="new_order_date" class="block text-xs text-slate-400 mb-1">Order Date</label>
+                                            <input id="new_order_date" name="order_date" type="date" required value="{{ old('order_date') }}" class="w-full rounded-lg border border-white/15 bg-slate-900/70 text-white focus:border-cyan-300 focus:ring-cyan-300">
+                                            @if($orderStoreErrors->has('order_date')) <p class="mt-1 text-xs text-rose-300">{{ $orderStoreErrors->first('order_date') }}</p> @endif
+                                        </div>
+                                        <div>
+                                            <label for="new_buyer_name" class="block text-xs text-slate-400 mb-1">Buyer Name</label>
+                                            <input id="new_buyer_name" name="buyer_name" type="text" required value="{{ old('buyer_name') }}" class="w-full rounded-lg border border-white/15 bg-slate-900/70 text-white focus:border-cyan-300 focus:ring-cyan-300">
+                                            @if($orderStoreErrors->has('buyer_name')) <p class="mt-1 text-xs text-rose-300">{{ $orderStoreErrors->first('buyer_name') }}</p> @endif
+                                        </div>
+                                        <div>
+                                            <label for="new_ebay_order_no" class="block text-xs text-slate-400 mb-1">eBay Order No</label>
+                                            <input id="new_ebay_order_no" name="ebay_order_no" type="text" value="{{ old('ebay_order_no') }}" class="w-full rounded-lg border border-white/15 bg-slate-900/70 text-white focus:border-cyan-300 focus:ring-cyan-300">
+                                            @if($orderStoreErrors->has('ebay_order_no')) <p class="mt-1 text-xs text-rose-300">{{ $orderStoreErrors->first('ebay_order_no') }}</p> @endif
+                                        </div>
+                                        <div>
+                                            <label for="new_amazon_order_no" class="block text-xs text-slate-400 mb-1">Amazon Order No</label>
+                                            <input id="new_amazon_order_no" name="amazon_order_no" type="text" value="{{ old('amazon_order_no') }}" class="w-full rounded-lg border border-white/15 bg-slate-900/70 text-white focus:border-cyan-300 focus:ring-cyan-300">
+                                            @if($orderStoreErrors->has('amazon_order_no')) <p class="mt-1 text-xs text-rose-300">{{ $orderStoreErrors->first('amazon_order_no') }}</p> @endif
+                                        </div>
+                                        <div>
+                                            <label for="new_status_order" class="block text-xs text-slate-400 mb-1">Status</label>
+                                            <select id="new_status_order" name="status" class="w-full rounded-lg border border-white/15 bg-slate-900/70 text-white focus:border-cyan-300 focus:ring-cyan-300">
+                                                @foreach(
+                                                    \App\Models\Order::STATUSES as $s
+                                                )
+                                                    <option value="{{ $s }}" @selected(old('status', 'Order Placed') === $s)>{{ $s }}</option>
+                                                @endforeach
+                                            </select>
+                                            @if($orderStoreErrors->has('status')) <p class="mt-1 text-xs text-rose-300">{{ $orderStoreErrors->first('status') }}</p> @endif
+                                        </div>
+                                        <div>
+                                            <label for="new_amazon_cost" class="block text-xs text-slate-400 mb-1">Amazon Cost</label>
+                                            <input id="new_amazon_cost" name="amazon_cost" type="number" min="0" step="0.01" required value="{{ old('amazon_cost') }}" class="w-full rounded-lg border border-white/15 bg-slate-900/70 text-white focus:border-cyan-300 focus:ring-cyan-300">
+                                            @if($orderStoreErrors->has('amazon_cost')) <p class="mt-1 text-xs text-rose-300">{{ $orderStoreErrors->first('amazon_cost') }}</p> @endif
+                                        </div>
+                                        <div>
+                                            <label for="new_ebay_receipts" class="block text-xs text-slate-400 mb-1">eBay Receipts</label>
+                                            <input id="new_ebay_receipts" name="ebay_receipts" type="number" min="0" step="0.01" required value="{{ old('ebay_receipts') }}" class="w-full rounded-lg border border-white/15 bg-slate-900/70 text-white focus:border-cyan-300 focus:ring-cyan-300">
+                                            @if($orderStoreErrors->has('ebay_receipts')) <p class="mt-1 text-xs text-rose-300">{{ $orderStoreErrors->first('ebay_receipts') }}</p> @endif
+                                        </div>
+                                        <div class="md:col-span-2 xl:col-span-4">
+                                            <label for="new_order_note" class="block text-xs text-slate-400 mb-1">Note</label>
+                                            <input id="new_order_note" name="note" type="text" value="{{ old('note') }}" class="w-full rounded-lg border border-white/15 bg-slate-900/70 text-white focus:border-cyan-300 focus:ring-cyan-300">
+                                            @if($orderStoreErrors->has('note')) <p class="mt-1 text-xs text-rose-300">{{ $orderStoreErrors->first('note') }}</p> @endif
+                                        </div>
+                                    </div>
+                                    <div class="flex justify-end gap-3">
+                                        <button type="button" @click="cancelCreate()" class="rounded-lg border border-white/20 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-white/10 transition">Cancel</button>
+                                        <button type="submit" class="rounded-lg bg-cyan-400/90 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-300 transition">Save Order</button>
+                                    </div>
+                                </form>
+                            </td>
+                        </tr>
+                        @endif
+
                         @forelse($orders as $order)
                             @php
                                 $statusColour = match($order->status) {
@@ -161,8 +242,9 @@
                                     'Refunded'     => 'bg-rose-400/15 text-rose-300',
                                     default        => 'bg-amber-400/15 text-amber-300',
                                 };
+                                $orderUpdateErrors = $errors->getBag('orderUpdate'.$order->id);
                             @endphp
-                            <tr class="border-b border-white/5 hover:bg-white/[.02] transition">
+                            <tr x-show="editingId !== {{ $order->id }}" class="border-b border-white/5 hover:bg-white/[.02] transition {{ $canManageOrders ? 'cursor-pointer' : '' }}" @if($canManageOrders) @click="startEdit({{ $order->id }})" @endif>
                                 <td class="px-4 py-3 text-slate-300 whitespace-nowrap">{{ $order->order_date->format('d M Y') }}</td>
                                 @if($isAdmin)
                                     <td class="px-4 py-3 text-slate-400 text-xs">{{ $order->user->name ?? '—' }}</td>
@@ -189,15 +271,79 @@
                                 <td class="px-4 py-3 text-right {{ $order->roi >= 0 ? 'text-emerald-300/80' : 'text-rose-300/80' }}">
                                     {{ number_format($order->roi, 1) }}%
                                 </td>
-                                <td class="px-4 py-3 text-right whitespace-nowrap">
-                                    <a href="{{ route('orders.edit', $order) }}" class="text-xs text-slate-400 hover:text-cyan-300 transition">Edit</a>
+                                <td class="px-4 py-3 text-right whitespace-nowrap" @if($canManageOrders) @click.stop @endif>
+                                    @if($canManageOrders)
+                                    <button type="button" @click="startEdit({{ $order->id }})" class="text-xs text-slate-400 hover:text-cyan-300 transition">Edit</button>
                                     <form method="POST" action="{{ route('orders.destroy', $order) }}" class="inline ms-3"
                                           onsubmit="return confirm('Delete this order?')">
                                         @csrf @method('DELETE')
+                                        <input type="hidden" name="return_to" value="{{ $returnTo }}">
                                         <button type="submit" class="text-xs text-slate-400 hover:text-rose-300 transition">Delete</button>
+                                    </form>
+                                    @endif
+                                </td>
+                            </tr>
+                            @if($canManageOrders)
+                            <tr x-cloak x-show="editingId === {{ $order->id }}" class="border-b border-cyan-400/20 bg-cyan-400/5">
+                                <td colspan="{{ $isAdmin ? 11 : 10 }}" class="px-4 py-5">
+                                    <form method="POST" action="{{ route('orders.update', $order) }}" class="space-y-4">
+                                        @csrf
+                                        @method('PUT')
+                                        <input type="hidden" name="return_to" value="{{ $returnTo }}">
+                                        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                                            <div>
+                                                <label for="order_date_{{ $order->id }}" class="block text-xs text-slate-400 mb-1">Order Date</label>
+                                                <input id="order_date_{{ $order->id }}" name="order_date" type="date" required value="{{ old('order_date', optional($order->order_date)->format('Y-m-d')) }}" class="w-full rounded-lg border border-white/15 bg-slate-900/70 text-white focus:border-cyan-300 focus:ring-cyan-300">
+                                                @if($orderUpdateErrors->has('order_date')) <p class="mt-1 text-xs text-rose-300">{{ $orderUpdateErrors->first('order_date') }}</p> @endif
+                                            </div>
+                                            <div>
+                                                <label for="buyer_name_{{ $order->id }}" class="block text-xs text-slate-400 mb-1">Buyer Name</label>
+                                                <input id="buyer_name_{{ $order->id }}" name="buyer_name" type="text" required value="{{ old('buyer_name', $order->buyer_name) }}" class="w-full rounded-lg border border-white/15 bg-slate-900/70 text-white focus:border-cyan-300 focus:ring-cyan-300">
+                                                @if($orderUpdateErrors->has('buyer_name')) <p class="mt-1 text-xs text-rose-300">{{ $orderUpdateErrors->first('buyer_name') }}</p> @endif
+                                            </div>
+                                            <div>
+                                                <label for="ebay_order_no_{{ $order->id }}" class="block text-xs text-slate-400 mb-1">eBay Order No</label>
+                                                <input id="ebay_order_no_{{ $order->id }}" name="ebay_order_no" type="text" value="{{ old('ebay_order_no', $order->ebay_order_no) }}" class="w-full rounded-lg border border-white/15 bg-slate-900/70 text-white focus:border-cyan-300 focus:ring-cyan-300">
+                                                @if($orderUpdateErrors->has('ebay_order_no')) <p class="mt-1 text-xs text-rose-300">{{ $orderUpdateErrors->first('ebay_order_no') }}</p> @endif
+                                            </div>
+                                            <div>
+                                                <label for="amazon_order_no_{{ $order->id }}" class="block text-xs text-slate-400 mb-1">Amazon Order No</label>
+                                                <input id="amazon_order_no_{{ $order->id }}" name="amazon_order_no" type="text" value="{{ old('amazon_order_no', $order->amazon_order_no) }}" class="w-full rounded-lg border border-white/15 bg-slate-900/70 text-white focus:border-cyan-300 focus:ring-cyan-300">
+                                                @if($orderUpdateErrors->has('amazon_order_no')) <p class="mt-1 text-xs text-rose-300">{{ $orderUpdateErrors->first('amazon_order_no') }}</p> @endif
+                                            </div>
+                                            <div>
+                                                <label for="status_order_{{ $order->id }}" class="block text-xs text-slate-400 mb-1">Status</label>
+                                                <select id="status_order_{{ $order->id }}" name="status" class="w-full rounded-lg border border-white/15 bg-slate-900/70 text-white focus:border-cyan-300 focus:ring-cyan-300">
+                                                    @foreach(\App\Models\Order::STATUSES as $s)
+                                                        <option value="{{ $s }}" @selected(old('status', $order->status) === $s)>{{ $s }}</option>
+                                                    @endforeach
+                                                </select>
+                                                @if($orderUpdateErrors->has('status')) <p class="mt-1 text-xs text-rose-300">{{ $orderUpdateErrors->first('status') }}</p> @endif
+                                            </div>
+                                            <div>
+                                                <label for="amazon_cost_{{ $order->id }}" class="block text-xs text-slate-400 mb-1">Amazon Cost</label>
+                                                <input id="amazon_cost_{{ $order->id }}" name="amazon_cost" type="number" min="0" step="0.01" required value="{{ old('amazon_cost', $order->amazon_cost) }}" class="w-full rounded-lg border border-white/15 bg-slate-900/70 text-white focus:border-cyan-300 focus:ring-cyan-300">
+                                                @if($orderUpdateErrors->has('amazon_cost')) <p class="mt-1 text-xs text-rose-300">{{ $orderUpdateErrors->first('amazon_cost') }}</p> @endif
+                                            </div>
+                                            <div>
+                                                <label for="ebay_receipts_{{ $order->id }}" class="block text-xs text-slate-400 mb-1">eBay Receipts</label>
+                                                <input id="ebay_receipts_{{ $order->id }}" name="ebay_receipts" type="number" min="0" step="0.01" required value="{{ old('ebay_receipts', $order->ebay_receipts) }}" class="w-full rounded-lg border border-white/15 bg-slate-900/70 text-white focus:border-cyan-300 focus:ring-cyan-300">
+                                                @if($orderUpdateErrors->has('ebay_receipts')) <p class="mt-1 text-xs text-rose-300">{{ $orderUpdateErrors->first('ebay_receipts') }}</p> @endif
+                                            </div>
+                                            <div class="md:col-span-2 xl:col-span-4">
+                                                <label for="order_note_{{ $order->id }}" class="block text-xs text-slate-400 mb-1">Note</label>
+                                                <input id="order_note_{{ $order->id }}" name="note" type="text" value="{{ old('note', $order->note) }}" class="w-full rounded-lg border border-white/15 bg-slate-900/70 text-white focus:border-cyan-300 focus:ring-cyan-300">
+                                                @if($orderUpdateErrors->has('note')) <p class="mt-1 text-xs text-rose-300">{{ $orderUpdateErrors->first('note') }}</p> @endif
+                                            </div>
+                                        </div>
+                                        <div class="flex justify-end gap-3">
+                                            <button type="button" @click="cancelEdit()" class="rounded-lg border border-white/20 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-white/10 transition">Cancel</button>
+                                            <button type="submit" class="rounded-lg bg-cyan-400/90 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-300 transition">Save Changes</button>
+                                        </div>
                                     </form>
                                 </td>
                             </tr>
+                            @endif
                         @empty
                             <tr>
                                 <td colspan="{{ $isAdmin ? 11 : 10 }}" class="px-4 py-10 text-center text-slate-400">No orders found.</td>

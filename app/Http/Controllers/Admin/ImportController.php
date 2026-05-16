@@ -12,7 +12,7 @@ class ImportController extends Controller
 {
     public function create()
     {
-        $clients = User::orderBy('name')->get(['id', 'name', 'email']);
+        $clients = User::where('role', 'client')->orderBy('name')->get(['id', 'name', 'email']);
 
         return view('admin.import.create', ['clients' => $clients]);
     }
