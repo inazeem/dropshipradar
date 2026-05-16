@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Helpers\CurrencyHelper;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -41,6 +42,49 @@ class Listing extends Model
     public function amazonThumbnailUrl(): ?string
     {
         return filter_var($this->image_url, FILTER_VALIDATE_URL) ? $this->image_url : null;
+    }
+
+    public function marketplaceCurrencyCode(): string
+    {
+        $host = $this->marketplaceHost();
+
+        if (! $host) {
+            return 'GBP';
+        }
+
+        if (str_ends_with($host, '.co.uk')) {
+            return 'GBP';
+        }
+
+        if (str_ends_with($host, '.com')) {
+            return 'USD';
+        }
+
+        return 'GBP';
+    }
+
+    public function marketplaceCurrencySymbol(): string
+    {
+        return CurrencyHelper::getSymbol($this->marketplaceCurrencyCode());
+    }
+
+    private function marketplaceHost(): ?string
+    {
+        foreach ([$this->amazon_url, $this->ebay_url] as $url) {
+            if (! $url) {
+                continue;
+            }
+
+            $host = parse_url($url, PHP_URL_HOST);
+
+            if (! is_string($host) || $host === '') {
+                continue;
+            }
+
+            return strtolower($host);
+        }
+
+        return null;
     }
 
     private static function extractAmazonAsin(?string $url): ?string

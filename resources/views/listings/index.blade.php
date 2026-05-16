@@ -4,11 +4,13 @@
     $listingItems = collect($listings->items());
     $editingListingId = $listingItems->first(fn ($listing) => $errors->getBag('listingUpdate'.$listing->id)->any())?->id;
     $visibleListingIds = $listingItems->pluck('id')->all();
+    $ebayUrls = $listingItems->mapWithKeys(fn ($listing) => [$listing->id => $listing->ebay_url])->filter()->all();
     $amazonUrls = $listingItems->mapWithKeys(fn ($listing) => [$listing->id => $listing->amazon_url])->filter()->all();
     $priceAdjustments = $listingItems->mapWithKeys(fn ($listing) => [$listing->id => [
         'basePrice' => (float) $listing->ebay_price,
         'amazonPrice' => (float) $listing->amazon_price,
         'ebayFee' => (float) $listing->ebay_fee,
+        'currencySymbol' => $listing->marketplaceCurrencySymbol(),
         'percentage' => (string) ($listing->adjustment_percentage ?? 2.1),
         'initialPercentage' => (string) ($listing->adjustment_percentage ?? 2.1),
     ]])->all();
@@ -33,6 +35,7 @@
         'orderCreateOpen' => $orderStoreErrors->any(),
         'orderDraft' => $orderDraft,
         'visibleIds' => $visibleListingIds,
+        'ebayUrls' => $ebayUrls,
         'amazonUrls' => $amazonUrls,
         'priceAdjustments' => $priceAdjustments,
         'clientIds' => $clientIds,
@@ -151,6 +154,9 @@
                         <p class="rounded-lg border border-white/10 bg-slate-900/50 px-3 py-2 text-sm text-slate-200"><span x-text="selected.length"></span> selected on this page</p>
                     </div>
                     <div class="flex flex-wrap items-end gap-3">
+                    <button type="button" @click="openSelectedEbayUrls()" :disabled="selectedEbayUrls().length === 0" class="rounded-lg border border-white/20 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-white/10 transition disabled:opacity-40 disabled:cursor-not-allowed">
+                        Open eBay URLs
+                    </button>
                     <button type="button" @click="openSelectedAmazonUrls()" :disabled="selectedAmazonUrls().length === 0" class="rounded-lg border border-white/20 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-white/10 transition disabled:opacity-40 disabled:cursor-not-allowed">
                         Open Amazon URLs
                     </button>
@@ -359,11 +365,11 @@
                                     @endif
                                 </td>
                                 <td class="py-3 pe-3 text-right text-slate-200" @click.stop>
-                                    <span class="font-semibold" x-text="'$' + previewListingPrice({{ $listing->id }}, {{ number_format($listing->ebay_price, 2, '.', '') }})"></span>
+                                    <span class="font-semibold" x-text="listingCurrencySymbol({{ $listing->id }}) + previewListingPrice({{ $listing->id }}, {{ number_format($listing->ebay_price, 2, '.', '') }})"></span>
                                 </td>
-                                <td class="py-3 pe-3 text-right text-slate-200" x-text="'$' + previewListingBuy({{ $listing->id }}, {{ number_format($listing->amazon_price, 2, '.', '') }})"></td>
-                                <td class="py-3 pe-3 text-right text-slate-200" x-text="'$' + previewListingFee({{ $listing->id }}, {{ number_format($listing->ebay_fee, 2, '.', '') }})"></td>
-                                <td class="py-3 pe-3 text-right" :class="priceAdjustmentProfitClass({{ $listing->id }}, {{ number_format($listing->profit, 2, '.', '') }})" x-text="'$' + previewListingProfit({{ $listing->id }}, {{ number_format($listing->profit, 2, '.', '') }})"></td>
+                                <td class="py-3 pe-3 text-right text-slate-200" x-text="listingCurrencySymbol({{ $listing->id }}) + previewListingBuy({{ $listing->id }}, {{ number_format($listing->amazon_price, 2, '.', '') }})"></td>
+                                <td class="py-3 pe-3 text-right text-slate-200" x-text="listingCurrencySymbol({{ $listing->id }}) + previewListingFee({{ $listing->id }}, {{ number_format($listing->ebay_fee, 2, '.', '') }})"></td>
+                                <td class="py-3 pe-3 text-right" :class="priceAdjustmentProfitClass({{ $listing->id }}, {{ number_format($listing->profit, 2, '.', '') }})" x-text="listingCurrencySymbol({{ $listing->id }}) + previewListingProfit({{ $listing->id }}, {{ number_format($listing->profit, 2, '.', '') }})"></td>
                                 <td class="py-3 pe-3 text-right text-slate-200" x-text="previewListingRoi({{ $listing->id }}, {{ number_format($listing->roi, 2, '.', '') }}) + '%' "></td>
                                 <td class="py-3 pe-3 text-slate-200">{{ ucfirst($listing->status) }}</td>
                                 <td class="py-3 pe-3 text-right" @click.stop>

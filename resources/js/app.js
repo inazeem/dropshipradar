@@ -12,6 +12,7 @@ document.addEventListener('alpine:init', () => {
 		selected: [],
 		percentage: '',
 		visibleIds: config.visibleIds ?? [],
+		ebayUrls: config.ebayUrls ?? {},
 		amazonUrls: config.amazonUrls ?? {},
 		priceAdjustments: config.priceAdjustments ?? {},
 		clientOptions: config.clientOptions ?? [],
@@ -95,6 +96,12 @@ document.addEventListener('alpine:init', () => {
 				.filter((value) => Boolean(value)))];
 		},
 
+		selectedEbayUrls() {
+			return [...new Set(this.selected
+				.map((id) => this.ebayUrls[id])
+				.filter((value) => Boolean(value)))];
+		},
+
 		updatePriceAdjustment(id, value) {
 			if (!this.priceAdjustments[id]) {
 				return;
@@ -105,6 +112,10 @@ document.addEventListener('alpine:init', () => {
 
 		priceAdjustmentValue(id) {
 			return this.priceAdjustments[id]?.percentage ?? '2.1';
+		},
+
+		listingCurrencySymbol(id) {
+			return this.priceAdjustments[id]?.currencySymbol ?? '$';
 		},
 
 		isPriceAdjustmentDirty(id) {
@@ -172,8 +183,7 @@ document.addEventListener('alpine:init', () => {
 			return Number.isFinite(Number.parseFloat(this.priceAdjustmentValue(id)));
 		},
 
-		openSelectedAmazonUrls() {
-			const urls = this.selectedAmazonUrls();
+		openUrlsWithDelay(urls, title) {
 			if (urls.length === 0) {
 				return;
 			}
@@ -191,10 +201,10 @@ document.addEventListener('alpine:init', () => {
 <html>
 <head>
 <meta charset="utf-8">
-<title>Opening Amazon URLs</title>
+<title>${title}</title>
 </head>
 <body style="font-family: Arial, sans-serif; background: #020617; color: #e2e8f0; padding: 24px;">
-<p id="status">Preparing to open ${urls.length} Amazon URL(s)...</p>
+<p id="status">Preparing to open ${urls.length} URL(s)...</p>
 <script>
 const urls = ${JSON.stringify(urls)};
 const delayMs = ${delayMs};
@@ -225,6 +235,14 @@ openNext();
 </body>
 </html>`);
 			helper.document.close();
+		},
+
+		openSelectedAmazonUrls() {
+			this.openUrlsWithDelay(this.selectedAmazonUrls(), 'Opening Amazon URLs');
+		},
+
+		openSelectedEbayUrls() {
+			this.openUrlsWithDelay(this.selectedEbayUrls(), 'Opening eBay URLs');
 		},
 
 		openCopyModal(id, url) {
