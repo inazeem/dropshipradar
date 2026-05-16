@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Listing;
-use App\Models\User;
 use Illuminate\Http\Request;
 use SplFileObject;
 
@@ -12,19 +11,16 @@ class ImportController extends Controller
 {
     public function create()
     {
-        $clients = User::where('role', 'client')->orderBy('name')->get(['id', 'name', 'email']);
-
-        return view('admin.import.create', ['clients' => $clients]);
+        return view('admin.import.create');
     }
 
     public function store(Request $request)
     {
         $request->validate([
-            'user_id' => ['required', 'exists:users,id'],
             'csv_file' => ['required', 'file', 'mimes:csv,txt', 'max:10240'],
         ]);
 
-        $user = User::findOrFail($request->integer('user_id'));
+        $user = $request->user();
 
         $path = $request->file('csv_file')->getRealPath();
         $file = new SplFileObject($path);
@@ -78,7 +74,7 @@ class ImportController extends Controller
         }
 
         return redirect()->route('admin.import.create')
-            ->with('success', "Imported {$imported} listings to {$user->name}" . ($skipped ? " ({$skipped} rows skipped)." : '.'));
+            ->with('success', "Imported {$imported} listings." . ($skipped ? " {$skipped} rows skipped." : ''));
     }
 
     public function copyToUsers(Request $request, Listing $listing)

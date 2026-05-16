@@ -31,31 +31,15 @@
 
             <div class="glass-card p-6 space-y-6">
                 <div class="space-y-1">
-                    <h3 class="font-display text-lg text-white">Upload CSV to a Client Account</h3>
+                    <h3 class="font-display text-lg text-white">Upload Listings CSV</h3>
                     <p class="text-sm text-slate-400">
-                        Select a client and upload a CSV file in the same format as the listings table.
-                        Existing eBay URLs for that client will be updated; new ones will be created.
+                        Upload a CSV file in the same format as the listings table.
+                        Existing eBay URLs will be updated; new ones will be created.
                     </p>
                 </div>
 
                 <form method="POST" action="{{ route('admin.import.store') }}" enctype="multipart/form-data" class="space-y-5">
                     @csrf
-
-                    {{-- Client picker --}}
-                    <div class="space-y-1.5">
-                        <label for="user_id" class="block text-sm font-medium text-slate-300">
-                            Target Client <span class="text-rose-400">*</span>
-                        </label>
-                        <select id="user_id" name="user_id" required
-                            class="w-full rounded-lg border border-white/15 bg-slate-900/70 text-white placeholder-slate-400 focus:border-cyan-300 focus:ring-cyan-300 py-2.5 px-3">
-                            <option value="" disabled {{ old('user_id') ? '' : 'selected' }}>— choose a user —</option>
-                            @foreach ($clients as $client)
-                                <option value="{{ $client->id }}" {{ old('user_id') == $client->id ? 'selected' : '' }}>
-                                    {{ $client->name }} ({{ $client->email }})
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
 
                     {{-- File upload --}}
                     <div class="space-y-1.5">
