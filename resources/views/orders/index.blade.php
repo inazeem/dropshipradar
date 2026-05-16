@@ -274,11 +274,11 @@
                                 <td class="px-4 py-3 text-right whitespace-nowrap" @if($canManageOrders) @click.stop @endif>
                                     @if($canManageOrders)
                                     <button type="button" @click="startEdit({{ $order->id }})" class="text-xs text-slate-400 hover:text-cyan-300 transition">Edit</button>
-                                    <form method="POST" action="{{ route('orders.destroy', $order) }}" class="inline ms-3"
+                                    <form method="POST" action="{{ route('orders.destroy', $order) }}" class="inline-block ms-3"
                                           onsubmit="return confirm('Delete this order?')">
                                         @csrf @method('DELETE')
                                         <input type="hidden" name="return_to" value="{{ $returnTo }}">
-                                        <button type="submit" class="text-xs text-slate-400 hover:text-rose-300 transition">Delete</button>
+                                        <button type="button" @click.stop="if (confirm('Delete this order?')) $el.form.submit()" class="text-xs text-slate-400 hover:text-rose-300 transition">Delete</button>
                                     </form>
                                     @endif
                                 </td>
