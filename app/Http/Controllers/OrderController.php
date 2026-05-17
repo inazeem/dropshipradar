@@ -148,7 +148,15 @@ class OrderController extends Controller
     {
         $this->authorize('update', $order);
 
-        return view('orders.edit', compact('order'));
+        $user = auth()->user();
+
+        return view('orders.edit', [
+            'order' => $order,
+            'isAdmin' => $user->isAdmin(),
+            'clients' => $user->isAdmin()
+                ? User::where('role', 'client')->orderBy('name')->get(['id', 'name'])
+                : collect(),
+        ]);
     }
 
     public function update(Request $request, Order $order)
@@ -191,6 +199,12 @@ class OrderController extends Controller
         if ($user->isAdmin() && $request->filled('user_id')) {
             $targetUser = User::findOrFail($request->integer('user_id'));
         } else {
+
+            if (auth()->user()->isAdmin() && $request->filled('user_id')) {
+                $data['user_id'] = User::findOrFail($request->integer('user_id'))->id;
+            } else {
+                unset($data['user_id']);
+            }
             $targetUser = $user;
         }
 

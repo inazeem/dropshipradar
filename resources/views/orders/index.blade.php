@@ -263,7 +263,7 @@
                                 };
                                 $orderUpdateErrors = $errors->getBag('orderUpdate'.$order->id);
                             @endphp
-                            <tr x-show="editingId !== {{ $order->id }}" class="border-b border-white/5 hover:bg-white/[.02] transition {{ $canManageOrders ? 'cursor-pointer' : '' }}" @if($canManageOrders) @click="startEdit({{ $order->id }})" @endif>
+                            <tr x-show="editingId !== {{ $order->id }}" class="border-b border-white/5 hover:bg-white/[.02] transition {{ $canManageOrders ? 'cursor-pointer' : '' }}" @if($canManageOrders) @click="startEdit({{ $order->id }}, '{{ $order->user_id }}')" @endif>
                                 <td class="px-4 py-3 text-slate-300 whitespace-nowrap">{{ $order->order_date->format('d M Y') }}</td>
                                 @if($isAdmin)
                                     <td class="px-4 py-3 text-slate-400 text-xs">{{ $order->user->name ?? '—' }}</td>
@@ -292,7 +292,7 @@
                                 </td>
                                 <td class="px-4 py-3 text-right whitespace-nowrap" @if($canManageOrders) @click.stop @endif>
                                     @if($canManageOrders)
-                                    <button type="button" @click="startEdit({{ $order->id }})" class="text-xs text-slate-400 hover:text-cyan-300 transition">Edit</button>
+                                    <button type="button" @click="startEdit({{ $order->id }}, '{{ $order->user_id }}')" class="text-xs text-slate-400 hover:text-cyan-300 transition">Edit</button>
                                     <form method="POST" action="{{ route('orders.destroy', $order) }}" class="inline-block ms-3"
                                           onsubmit="return confirm('Delete this order?')">
                                         @csrf @method('DELETE')
@@ -310,6 +310,21 @@
                                         @method('PUT')
                                         <input type="hidden" name="return_to" value="{{ $returnTo }}">
                                         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                                            @if($isAdmin && $clients->isNotEmpty())
+                                                <div>
+                                                    <label for="edit_order_user_search_{{ $order->id }}" class="block text-xs text-slate-400 mb-1">Search User</label>
+                                                    <input id="edit_order_user_search_{{ $order->id }}" type="text" x-model="userSearch" class="w-full rounded-lg border border-white/15 bg-slate-900/70 text-white focus:border-cyan-300 focus:ring-cyan-300" placeholder="Search client by full name">
+                                                </div>
+                                                <div>
+                                                    <label for="edit_order_user_id_{{ $order->id }}" class="block text-xs text-slate-400 mb-1">User</label>
+                                                    <select id="edit_order_user_id_{{ $order->id }}" name="user_id" x-model="selectedUserId" class="w-full rounded-lg border border-white/15 bg-slate-900/70 text-white focus:border-cyan-300 focus:ring-cyan-300">
+                                                        <template x-for="client in filteredClientOptions()" :key="client.id">
+                                                            <option :value="client.id" x-text="client.name"></option>
+                                                        </template>
+                                                    </select>
+                                                    @if($orderUpdateErrors->has('user_id')) <p class="mt-1 text-xs text-rose-300">{{ $orderUpdateErrors->first('user_id') }}</p> @endif
+                                                </div>
+                                            @endif
                                             <div>
                                                 <label for="order_date_{{ $order->id }}" class="block text-xs text-slate-400 mb-1">Order Date</label>
                                                 <input id="order_date_{{ $order->id }}" name="order_date" type="date" required value="{{ old('order_date', optional($order->order_date)->format('Y-m-d')) }}" class="w-full rounded-lg border border-white/15 bg-slate-900/70 text-white focus:border-cyan-300 focus:ring-cyan-300">

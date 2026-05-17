@@ -347,24 +347,31 @@ openNext();
 	Alpine.data('ordersTable', (config = {}) => ({
 		editingId: config.editingId ?? null,
 		createOpen: config.createOpen ?? false,
+		defaultSelectedUserId: String(config.selectedUserId ?? ''),
 		...createOrderUserPickerState(config),
 
 		startCreate() {
 			this.createOpen = true;
 			this.editingId = null;
+			this.selectedUserId = this.defaultSelectedUserId;
+			this.userSearch = '';
 		},
 
 		cancelCreate() {
 			this.createOpen = false;
+			this.userSearch = '';
 		},
 
-		startEdit(id) {
+		startEdit(id, userId = null) {
 			this.editingId = id;
 			this.createOpen = false;
+			this.selectedUserId = String(userId ?? this.defaultSelectedUserId);
+			this.userSearch = '';
 		},
 
 		cancelEdit() {
 			this.editingId = null;
+			this.userSearch = '';
 		},
 	}));
 });

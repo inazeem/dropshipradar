@@ -1,3 +1,10 @@
+@php
+    $orderEditConfig = [
+        'clientOptions' => $clients->map(fn ($client) => ['id' => (string) $client->id, 'name' => $client->name])->values()->all(),
+        'selectedUserId' => old('user_id', $order->user_id),
+    ];
+@endphp
+
 <x-app-layout>
     <x-slot name="header">
         <div>
@@ -6,13 +13,13 @@
         </div>
     </x-slot>
 
-    <div class="py-8">
+    <div class="py-8" x-data="orderUserPicker({{ \Illuminate\Support\Js::from($orderEditConfig) }})">
         <div class="w-full px-4 sm:px-6 lg:px-8">
             <div class="glass-card p-6">
                 <form method="POST" action="{{ route('orders.update', $order) }}">
                     @csrf
                     @method('PUT')
-                    @include('orders._form', ['order' => $order, 'submitLabel' => 'Update Order'])
+                    @include('orders._form', ['order' => $order, 'submitLabel' => 'Update Order', 'isAdmin' => $isAdmin, 'clients' => $clients, 'userFieldIdPrefix' => 'edit_order'])
                 </form>
             </div>
         </div>
