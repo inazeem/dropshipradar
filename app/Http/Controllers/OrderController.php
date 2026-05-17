@@ -19,33 +19,7 @@ class OrderController extends Controller
         // Admins can filter by client; default to all orders
         $filterUserId = $request->get('user_id');
 
-        $baseQuery = $isAdmin
-            ? Order::with('user')->orderBy('order_date', 'desc')
-            : $user->orders()->orderBy('order_date', 'desc');
-
-        if ($isAdmin && $filterUserId) {
-            $baseQuery->where('user_id', $filterUserId);
-        }
-
-        if ($search = $request->get('search')) {
-            $baseQuery->where(function ($q) use ($search) {
-                $q->where('buyer_name', 'like', "%{$search}%")
-                  ->orWhere('ebay_order_no', 'like', "%{$search}%")
-                  ->orWhere('amazon_order_no', 'like', "%{$search}%");
-            });
-        }
-
-        if ($status = $request->get('status')) {
-            $baseQuery->where('status', $status);
-        }
-
-        if ($dateFrom = $request->get('date_from')) {
-            $baseQuery->where('order_date', '>=', $dateFrom);
-        }
-
-        if ($dateTo = $request->get('date_to')) {
-            $baseQuery->where('order_date', '<=', $dateTo);
-        }
+        $baseQuery = $this->buildFilteredOrdersQuery($request, $user, $isAdmin, $filterUserId);
 
         $orders = $baseQuery->paginate(25)->withQueryString();
 
@@ -73,6 +47,65 @@ class OrderController extends Controller
         $currencySymbol = CurrencyHelper::getSymbol($currency);
 
         return view('orders.index', compact('orders', 'totals', 'isAdmin', 'clients', 'currency', 'currencySymbol', 'canManageOrders'));
+    }
+
+    public function export(Request $request)
+    {
+        $user = auth()->user();
+        $isAdmin = $user->isAdmin();
+        $filterUserId = $request->get('user_id');
+
+        $orders = $this->buildFilteredOrdersQuery($request, $user, $isAdmin, $filterUserId)->get();
+
+        $filename = 'orders-'.now()->format('Y-m-d-His').'.csv';
+
+        return response()->streamDownload(function () use ($orders, $isAdmin) {
+            $handle = fopen('php://output', 'w');
+
+            $headers = [
+                'Order Date',
+                'Buyer Name',
+                'eBay Order No',
+                'Amazon Order No',
+                'Status',
+                'Amazon Cost',
+                'eBay Receipts',
+                'Profit',
+                'ROI',
+                'Note',
+            ];
+
+            if ($isAdmin) {
+                array_splice($headers, 1, 0, ['User']);
+            }
+
+            fputcsv($handle, $headers);
+
+            foreach ($orders as $order) {
+                $row = [
+                    optional($order->order_date)->format('Y-m-d'),
+                    $order->buyer_name,
+                    $order->ebay_order_no,
+                    $order->amazon_order_no,
+                    $order->status,
+                    number_format((float) $order->amazon_cost, 2, '.', ''),
+                    number_format((float) $order->ebay_receipts, 2, '.', ''),
+                    number_format((float) $order->profit, 2, '.', ''),
+                    number_format((float) $order->roi, 2, '.', ''),
+                    $order->note,
+                ];
+
+                if ($isAdmin) {
+                    array_splice($row, 1, 0, [$order->user->name ?? '']);
+                }
+
+                fputcsv($handle, $row);
+            }
+
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
     }
 
     public function create()
@@ -245,5 +278,38 @@ class OrderController extends Controller
     private function resolveReturnTo(Request $request): string
     {
         return $request->string('return_to')->toString() ?: route('orders.index');
+    }
+
+    private function buildFilteredOrdersQuery(Request $request, User $user, bool $isAdmin, mixed $filterUserId)
+    {
+        $query = $isAdmin
+            ? Order::with('user')->orderBy('order_date', 'desc')
+            : $user->orders()->orderBy('order_date', 'desc');
+
+        if ($isAdmin && $filterUserId) {
+            $query->where('user_id', $filterUserId);
+        }
+
+        if ($search = $request->get('search')) {
+            $query->where(function ($builder) use ($search) {
+                $builder->where('buyer_name', 'like', "%{$search}%")
+                    ->orWhere('ebay_order_no', 'like', "%{$search}%")
+                    ->orWhere('amazon_order_no', 'like', "%{$search}%");
+            });
+        }
+
+        if ($status = $request->get('status')) {
+            $query->where('status', $status);
+        }
+
+        if ($dateFrom = $request->get('date_from')) {
+            $query->where('order_date', '>=', $dateFrom);
+        }
+
+        if ($dateTo = $request->get('date_to')) {
+            $query->where('order_date', '<=', $dateTo);
+        }
+
+        return $query;
     }
 }

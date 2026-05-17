@@ -149,6 +149,7 @@
                 </div>
                 <div class="flex items-end gap-2">
                     <button type="submit" class="rounded-lg bg-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-600 transition">Filter</button>
+                    <a href="{{ route('orders.export', request()->query()) }}" class="rounded-lg border border-cyan-400/30 px-4 py-2 text-sm font-semibold text-cyan-300 hover:bg-cyan-400/10 transition">Download CSV</a>
                     @if(request('search') || request('status') || request('user_id') || request('date_from') || request('date_to'))
                         <a href="{{ route('orders.index') }}" class="rounded-lg border border-white/15 px-4 py-2 text-sm text-slate-400 hover:text-white transition">Clear</a>
                     @endif
