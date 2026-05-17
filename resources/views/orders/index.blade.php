@@ -6,6 +6,9 @@
     $ordersTableConfig = [
         'editingId' => $editingOrderId,
         'createOpen' => $orderStoreErrors->any(),
+        'userSearch' => '',
+        'selectedUserId' => old('user_id', request('user_id', $clients->first()?->id)),
+        'clientOptions' => $clients->map(fn ($client) => ['id' => (string) $client->id, 'name' => $client->name])->values()->all(),
     ];
 @endphp
 
@@ -178,6 +181,21 @@
                                     @csrf
                                     <input type="hidden" name="return_to" value="{{ $returnTo }}">
                                     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                                        @if($isAdmin && $clients->isNotEmpty())
+                                            <div>
+                                                <label for="new_order_user_search" class="block text-xs text-slate-400 mb-1">Search User</label>
+                                                <input id="new_order_user_search" type="text" x-model="userSearch" class="w-full rounded-lg border border-white/15 bg-slate-900/70 text-white focus:border-cyan-300 focus:ring-cyan-300" placeholder="Search client by full name">
+                                            </div>
+                                            <div>
+                                                <label for="new_order_user_id" class="block text-xs text-slate-400 mb-1">User</label>
+                                                <select id="new_order_user_id" name="user_id" x-model="selectedUserId" class="w-full rounded-lg border border-white/15 bg-slate-900/70 text-white focus:border-cyan-300 focus:ring-cyan-300">
+                                                    <template x-for="client in filteredClientOptions()" :key="client.id">
+                                                        <option :value="client.id" x-text="client.name"></option>
+                                                    </template>
+                                                </select>
+                                                @if($orderStoreErrors->has('user_id')) <p class="mt-1 text-xs text-rose-300">{{ $orderStoreErrors->first('user_id') }}</p> @endif
+                                            </div>
+                                        @endif
                                         <div>
                                             <label for="new_order_date" class="block text-xs text-slate-400 mb-1">Order Date</label>
                                             <input id="new_order_date" name="order_date" type="date" required value="{{ old('order_date') }}" class="w-full rounded-lg border border-white/15 bg-slate-900/70 text-white focus:border-cyan-300 focus:ring-cyan-300">

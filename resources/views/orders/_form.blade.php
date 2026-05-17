@@ -1,6 +1,31 @@
-@php $order = $order ?? null; @endphp
+@php
+    $order = $order ?? null;
+    $isAdmin = $isAdmin ?? false;
+    $clients = $clients ?? collect();
+    $userFieldIdPrefix = $userFieldIdPrefix ?? 'order';
+@endphp
 
 <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+    @if($isAdmin && $clients->isNotEmpty())
+        <div>
+            <label for="{{ $userFieldIdPrefix }}_user_search" class="block text-sm text-slate-300 mb-1">Search User</label>
+            <input id="{{ $userFieldIdPrefix }}_user_search" type="text" x-model="userSearch"
+                class="w-full rounded-lg border border-white/15 bg-slate-900/70 text-white placeholder-slate-400 focus:border-cyan-300 focus:ring-cyan-300"
+                placeholder="Search client by full name">
+        </div>
+
+        <div>
+            <label for="{{ $userFieldIdPrefix }}_user_id" class="block text-sm text-slate-300 mb-1">User</label>
+            <select id="{{ $userFieldIdPrefix }}_user_id" name="user_id" x-model="selectedUserId"
+                class="w-full rounded-lg border border-white/15 bg-slate-900/70 text-white focus:border-cyan-300 focus:ring-cyan-300">
+                <template x-for="client in filteredClientOptions()" :key="client.id">
+                    <option :value="client.id" x-text="client.name"></option>
+                </template>
+            </select>
+            @error('user_id') <p class="mt-1 text-sm text-rose-300">{{ $message }}</p> @enderror
+        </div>
+    @endif
+
     <div>
         <label for="order_date" class="block text-sm text-slate-300 mb-1">Order Date</label>
         <input id="order_date" name="order_date" type="date" required

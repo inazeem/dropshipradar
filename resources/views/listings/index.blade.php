@@ -6,6 +6,11 @@
     $visibleListingIds = $listingItems->pluck('id')->all();
     $ebayUrls = $listingItems->mapWithKeys(fn ($listing) => [$listing->id => $listing->ebay_url])->filter()->all();
     $amazonUrls = $listingItems->mapWithKeys(fn ($listing) => [$listing->id => $listing->amazon_url])->filter()->all();
+    $listingSearchIndex = $listingItems->mapWithKeys(fn ($listing) => [$listing->id => implode(' ', array_filter([
+        $listing->ebay_url,
+        $listing->amazon_url,
+        $listing->notes,
+    ]))])->all();
     $priceAdjustments = $listingItems->mapWithKeys(fn ($listing) => [$listing->id => [
         'basePrice' => (float) $listing->ebay_price,
         'amazonPrice' => (float) $listing->amazon_price,
@@ -35,6 +40,8 @@
         'orderCreateOpen' => $orderStoreErrors->any(),
         'orderDraft' => $orderDraft,
         'visibleIds' => $visibleListingIds,
+        'listingSearch' => $search,
+        'listingSearchIndex' => $listingSearchIndex,
         'ebayUrls' => $ebayUrls,
         'amazonUrls' => $amazonUrls,
         'priceAdjustments' => $priceAdjustments,
@@ -129,7 +136,7 @@
                 </div>
 
                 <form method="GET" action="{{ route('listings.index') }}" class="grid grid-cols-1 md:grid-cols-5 gap-3">
-                    <input type="text" name="search" value="{{ $search }}" placeholder="Search URLs or notes"
+                    <input type="text" name="search" value="{{ $search }}" x-model="listingSearch" placeholder="Search URLs or notes"
                         class="md:col-span-2 rounded-lg border border-white/15 bg-slate-900/70 text-white placeholder-slate-400 focus:border-cyan-300 focus:ring-cyan-300">
 
                     <select name="status" class="rounded-lg border border-white/15 bg-slate-900/70 text-white focus:border-cyan-300 focus:ring-cyan-300">
@@ -340,7 +347,7 @@
 
                         @forelse($listings as $listing)
                             @php $listingUpdateErrors = $errors->getBag('listingUpdate'.$listing->id); @endphp
-                            <tr x-show="editingId !== {{ $listing->id }}" class="border-b border-white/5 align-top cursor-pointer hover:bg-white/[.03] transition" @click="startEdit({{ $listing->id }})">
+                            <tr x-show="editingId !== {{ $listing->id }} && matchesListingSearch({{ $listing->id }})" class="border-b border-white/5 align-top cursor-pointer hover:bg-white/[.03] transition" @click="startEdit({{ $listing->id }})">
                                 <td class="py-3 pe-3 text-center" @click.stop>
                                     <input type="checkbox" class="rounded border-white/20 bg-slate-900 text-cyan-400 focus:ring-cyan-400" :checked="selected.includes({{ $listing->id }})" @change="toggleSelection({{ $listing->id }})">
                                 </td>
@@ -398,7 +405,7 @@
                                     </div>
                                 </td>
                             </tr>
-                            <tr x-cloak x-show="editingId === {{ $listing->id }}" class="border-b border-cyan-400/20 bg-cyan-400/5">
+                            <tr x-cloak x-show="editingId === {{ $listing->id }} && matchesListingSearch({{ $listing->id }})" class="border-b border-cyan-400/20 bg-cyan-400/5">
                                 <td colspan="12" class="px-4 py-5">
                                     <form method="POST" action="{{ route('listings.update', $listing) }}" class="space-y-4">
                                         @csrf
@@ -467,6 +474,11 @@
                                 <td colspan="12" class="py-10 text-center text-slate-400">No listings found.</td>
                             </tr>
                         @endforelse
+                        @if($listings->isNotEmpty())
+                            <tr x-cloak x-show="filteredVisibleIds().length === 0">
+                                <td colspan="12" class="py-10 text-center text-slate-400">No listings match the current search.</td>
+                            </tr>
+                        @endif
                     </tbody>
                 </table>
             </div>

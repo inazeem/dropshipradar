@@ -79,7 +79,14 @@ class OrderController extends Controller
     {
         $this->authorize('create', Order::class);
 
-        return view('orders.create');
+        $user = auth()->user();
+
+        return view('orders.create', [
+            'isAdmin' => $user->isAdmin(),
+            'clients' => $user->isAdmin()
+                ? User::where('role', 'client')->orderBy('name')->get(['id', 'name'])
+                : collect(),
+        ]);
     }
 
     public function store(Request $request)

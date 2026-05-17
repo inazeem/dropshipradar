@@ -2,6 +2,44 @@ import Alpine from 'alpinejs';
 
 window.Alpine = Alpine;
 
+const createOrderUserPickerState = (config = {}) => ({
+	userSearch: config.userSearch ?? '',
+	clientOptions: config.clientOptions ?? [],
+	selectedUserId: String(config.selectedUserId ?? ''),
+
+	filteredClientOptions() {
+		const search = this.userSearch.trim().toLowerCase();
+
+		if (!search) {
+			return this.clientOptions;
+		}
+
+		return this.clientOptions.filter((client) => client.name.toLowerCase().includes(search));
+	},
+
+	ensureSelectedUserVisible() {
+		if (!this.selectedUserId) {
+			return;
+		}
+
+		const selected = this.clientOptions.find((client) => String(client.id) === String(this.selectedUserId));
+
+		if (!selected) {
+			return;
+		}
+
+		const isVisible = this.filteredClientOptions().some((client) => String(client.id) === String(this.selectedUserId));
+
+		if (!isVisible) {
+			this.userSearch = selected.name;
+		}
+	},
+
+	init() {
+		this.ensureSelectedUserVisible();
+	},
+	});
+
 document.addEventListener('alpine:init', () => {
 	Alpine.data('listingsTable', (config = {}) => ({
 		editingId: config.editingId ?? null,
@@ -9,9 +47,11 @@ document.addEventListener('alpine:init', () => {
 		orderCreateOpen: config.orderCreateOpen ?? false,
 		orderDraft: { ...(config.orderDraft ?? {}) },
 		userSearch: '',
+		listingSearch: config.listingSearch ?? '',
 		selected: [],
 		percentage: '',
 		visibleIds: config.visibleIds ?? [],
+		listingSearchIndex: config.listingSearchIndex ?? {},
 		ebayUrls: config.ebayUrls ?? {},
 		amazonUrls: config.amazonUrls ?? {},
 		priceAdjustments: config.priceAdjustments ?? {},
@@ -82,12 +122,35 @@ document.addEventListener('alpine:init', () => {
 			this.selected = [...this.selected, id];
 		},
 
+		matchesListingSearch(id) {
+			const search = this.listingSearch.trim().toLowerCase();
+
+			if (!search) {
+				return true;
+			}
+
+			return String(this.listingSearchIndex[id] ?? '').toLowerCase().includes(search);
+		},
+
+		filteredVisibleIds() {
+			return this.visibleIds.filter((id) => this.matchesListingSearch(id));
+		},
+
 		allSelected() {
-			return this.visibleIds.length > 0 && this.visibleIds.every((id) => this.selected.includes(id));
+			const ids = this.filteredVisibleIds();
+
+			return ids.length > 0 && ids.every((id) => this.selected.includes(id));
 		},
 
 		toggleAll() {
-			this.selected = this.allSelected() ? [] : [...this.visibleIds];
+			const ids = this.filteredVisibleIds();
+
+			if (this.allSelected()) {
+				this.selected = this.selected.filter((id) => !ids.includes(id));
+				return;
+			}
+
+			this.selected = [...new Set([...this.selected, ...ids])];
 		},
 
 		selectedAmazonUrls() {
@@ -277,9 +340,14 @@ openNext();
 		},
 	}));
 
+	Alpine.data('orderUserPicker', (config = {}) => ({
+		...createOrderUserPickerState(config),
+	}));
+
 	Alpine.data('ordersTable', (config = {}) => ({
 		editingId: config.editingId ?? null,
 		createOpen: config.createOpen ?? false,
+		...createOrderUserPickerState(config),
 
 		startCreate() {
 			this.createOpen = true;

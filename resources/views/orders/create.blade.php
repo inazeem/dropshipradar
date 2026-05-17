@@ -1,3 +1,10 @@
+@php
+    $orderCreateConfig = [
+        'clientOptions' => $clients->map(fn ($client) => ['id' => (string) $client->id, 'name' => $client->name])->values()->all(),
+        'selectedUserId' => old('user_id', $clients->first()?->id),
+    ];
+@endphp
+
 <x-app-layout>
     <x-slot name="header">
         <div>
@@ -6,12 +13,12 @@
         </div>
     </x-slot>
 
-    <div class="py-8">
+    <div class="py-8" x-data="orderUserPicker({{ \Illuminate\Support\Js::from($orderCreateConfig) }})">
         <div class="w-full px-4 sm:px-6 lg:px-8">
             <div class="glass-card p-6">
                 <form method="POST" action="{{ route('orders.store') }}">
                     @csrf
-                    @include('orders._form', ['submitLabel' => 'Add Order'])
+                    @include('orders._form', ['submitLabel' => 'Add Order', 'isAdmin' => $isAdmin, 'clients' => $clients, 'userFieldIdPrefix' => 'create_order'])
                 </form>
             </div>
         </div>
